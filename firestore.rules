@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function staff() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.active == true
+        && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['staff', 'admin'];
+    }
+    function admin() {
+      return staff() && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role == 'admin';
+    }
+    function date(value) {
+      return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+    function studentValid(data) {
+      return data.keys().hasAll(['name', 'grade', 'active', 'activeLoanIds'])
+        && data.keys().hasOnly(['name', 'grade', 'active', 'activeLoanIds'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.grade is string && data.grade.size() <= 50
+        && data.active is bool && data.activeLoanIds is list
+        && data.activeLoanIds.size() <= 3
+        && data.activeLoanIds.toSet().size() == data.activeLoanIds.size();
+    }
+    function activeLoan(id, studentId) {
+      let loan = getAfter(/databases/$(database)/documents/loans/$(id)).data;
+      return loan.studentId == studentId && loan.returnDate == null;
+    }
+    function returnedLoan(id, studentId) {
+      let loan = getAfter(/databases/$(database)/documents/loans/$(id)).data;
+      return loan.studentId == studentId && date(loan.returnDate);
+    }
+    function activeList(ids, studentId) {
+      return (ids.size() < 1 || activeLoan(ids[0], studentId))
+        && (ids.size() < 2 || activeLoan(ids[1], studentId))
+        && (ids.size() < 3 || activeLoan(ids[2], studentId));
+    }
+    function removedList(ids, studentId) {
+      return (ids.size() < 1 || returnedLoan(ids[0], studentId))
+        && (ids.size() < 2 || returnedLoan(ids[1], studentId))
+        && (ids.size() < 3 || returnedLoan(ids[2], studentId));
+    }
+    match /staff/{uid} {
+      // Console/Admin SDK only: no client can grant itself a role.
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+    match /students/{studentId} {
+      allow read: if staff();
+      allow create: if admin() && studentValid(request.resource.data)
+        && request.resource.data.activeLoanIds.size() == 0;
+      allow update: if staff() && studentValid(request.resource.data)
+        && (admin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeLoanIds']))
+        && activeList(request.resource.data.activeLoanIds, studentId)
+        && removedList(resource.data.activeLoanIds.removeAll(request.resource.data.activeLoanIds), studentId);
+      allow delete: if false;
+    }
+    match /books/{isbn} {
+      allow read: if staff();
+      allow create, update: if admin()
+        && isbn.matches('^[0-9]{13}$')
+        && request.resource.data.keys().hasAll(['title', 'author'])
+        && request.resource.data.keys().hasOnly(['title', 'author'])
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 300
+        && request.resource.data.author is string && request.resource.data.author.size() <= 200;
+      allow delete: if false;
+    }
+    match /loans/{loanId} {
+      allow read: if staff();
+      allow create: if staff()
+        && request.resource.data.keys().hasAll(['studentId', 'bookId', 'loanDate', 'dueDate', 'returnDate'])
+        && request.resource.data.keys().hasOnly(['studentId', 'bookId', 'loanDate', 'dueDate', 'returnDate'])
+        && request.resource.data.studentId is string && request.resource.data.bookId is string
+        && date(request.resource.data.loanDate) && date(request.resource.data.dueDate)
+        && request.resource.data.dueDate >= request.resource.data.loanDate
+        && request.resource.data.returnDate == null
+        && exists(/databases/$(database)/documents/books/$(request.resource.data.bookId))
+        && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.active == true
+        && !(loanId in get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.activeLoanIds)
+        && loanId in getAfter(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.activeLoanIds;
+      allow update: if staff() && resource.data.returnDate == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['returnDate'])
+        && date(request.resource.data.returnDate)
+        && request.resource.data.returnDate >= resource.data.loanDate
+        && loanId in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.activeLoanIds
+        && !(loanId in getAfter(/databases/$(database)/documents/students/$(resource.data.studentId)).data.activeLoanIds);
+      allow delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "hinoki-library-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test tests/domain.test.mjs tests/build-pages.test.mjs",
+    "test:rules": "node tools/test-rules.mjs",
+    "test:ui": "playwright test"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.0",
+    "@playwright/test": "1.58.2",
+    "firebase": "12.19.0",
+    "firebase-tools": "15.11.0",
+    "jsqr": "1.4.0",
+    "qrcode": "1.5.4"
+  }
+}
