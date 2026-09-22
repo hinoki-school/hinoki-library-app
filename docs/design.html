@@ -216,7 +216,7 @@ footer{
     <div class="meta">
       <span><b>対象</b> 学年別グループ運用（3・4年生など）</span>
       <span><b>方式</b> Excel版 / Webアプリ版の2案</span>
-      <span><b>更新</b> 2026-09-14</span>
+      <span><b>更新</b> 2026-09-21</span>
     </div>
   </div>
 
@@ -229,7 +229,7 @@ footer{
       <div class="decisions">
         <div class="item"><div class="k">解決したい課題</div><div class="v">貸出・返却履歴の把握／延滞管理／蔵書管理／集計レポート／10冊ごとの達成記録</div></div>
         <div class="item"><div class="k">紙の記入</div><div class="v">生徒が自分で書くステップは維持する</div></div>
-        <div class="item"><div class="k">生徒の特定</div><div class="v">IDカードなし → 画面から名前選択が現実的（コスト比較のうえ採用）</div></div>
+        <div class="item"><div class="k">生徒の特定</div><div class="v">IDカードなし → QRカードを発行し教室に据え置き保管（コスト比較のうえ確定）</div></div>
         <div class="item"><div class="k">10冊達成メッセージ</div><div class="v">まずは記録・可視化のみ。自動送信は次フェーズ</div></div>
         <div class="item"><div class="k">書誌データの登録</div><div class="v">初回は全冊スキャンが必要。以後も使える「スキャン→確認→登録」の仕組みを常設</div></div>
         <div class="item"><div class="k">返却時の運用</div><div class="v">スキャンあり／なし、両方に対応できる作りにする</div></div>
@@ -302,7 +302,7 @@ flowchart LR
           <thead><tr><th>項目</th><th>内容</th><th>備考</th></tr></thead>
           <tbody>
             <tr><td class="key">生徒ID</td><td>生徒管理Excelの既存ID</td><td>主キー。新規発行しない</td></tr>
-            <tr><td class="key">氏名</td><td>生徒氏名</td><td>名前選択リストに表示</td></tr>
+            <tr><td class="key">氏名</td><td>生徒氏名</td><td>QRカードの印字・スタッフ確認用に表示</td></tr>
             <tr><td class="key">学年</td><td>学年</td><td>貸出票のグループ分けに使用</td></tr>
             <tr><td class="key">保護者連絡先</td><td>メール等</td><td>現時点では未使用。将来の通知機能のために保持だけしておく</td></tr>
             <tr><td class="key">在籍状態</td><td>在籍／退会</td><td>退会者を選択肢から自動除外</td></tr>
@@ -351,28 +351,28 @@ flowchart LR
     <section id="student">
       <span class="num">04</span>
       <h2>生徒の特定方式：コスト比較</h2>
-      <p class="lead">IDカードを配らない前提で、実装・運用の負担を比較した。</p>
+      <p class="lead">IDカードを配らない前提で、実装・運用の負担を比較した。<b>結論：QRカード方式を採用</b>（下記の通り、当初懸念していた運用コストは「教室据え置き」で解消できるため）。</p>
       <div class="compare">
         <div class="ccard">
-          <span class="tag">採用案</span>
+          <span class="tag">採用案（確定）</span>
+          <h4>生徒用QRカードを発行・教室に据え置き</h4>
+          <dl>
+            <dt>初期実装コスト</dt><dd>中 — カード作成・印刷・ラミネート作業が発生（名刺サイズ、名前順ホルダーで保管）</dd>
+            <dt>運用コスト</dt><dd>低 — <b>生徒に持ち帰らせず教室の名前順ホルダーに常設保管する</b>ことで、紛失・再発行の問題を解消。生徒は棚から自分のカードを取ってスキャン→戻すだけ</dd>
+            <dt>精度・速度</dt><dd>高 — スキャンのみで一意に特定でき、選び間違いがほぼない</dd>
+          </dl>
+        </div>
+        <div class="ccard">
+          <span class="tag" style="background:var(--surface-alt); color:var(--ink-soft);">不採用</span>
           <h4>画面から名前を選択／検索</h4>
           <dl>
             <dt>初期実装コスト</dt><dd>低 — 生徒マスタを画面に読み込むだけ。印刷物や配布作業が不要</dd>
             <dt>運用コスト</dt><dd>低 — 入退会時にマスタを更新するだけ</dd>
-            <dt>精度・速度</dt><dd>中 — 同姓や似た名前の誤選択に注意。写真のような学年別少人数運用なら十分実用的</dd>
-          </dl>
-        </div>
-        <div class="ccard">
-          <span class="tag" style="background:var(--surface-alt); color:var(--ink-soft);">将来の選択肢</span>
-          <h4>生徒用QRカードを発行</h4>
-          <dl>
-            <dt>初期実装コスト</dt><dd>中 — カード作成・印刷・ラミネート・配布作業が発生</dd>
-            <dt>運用コスト</dt><dd>中〜高 — 紛失時の再発行、入会のたびの発行が継続的に発生</dd>
-            <dt>精度・速度</dt><dd>高 — スキャンのみで一意に特定でき、選び間違いがほぼない</dd>
+            <dt>精度・速度</dt><dd>中 — 同姓や似た名前の誤選択に注意が必要。QR方式ほどの速さ・確実性はない</dd>
           </dl>
         </div>
       </div>
-      <div class="reco"><b>推奨：</b> まず「名前選択方式」で運用を開始し、生徒数の増加や選択ミスが実際に問題になった段階でQRカードへ移行する二段階アプローチ。初期コストを抑えつつ、必要になったときだけ精度を上げられる。</div>
+      <div class="reco"><b>採用：</b> 生徒用QRカードを発行し、教室内の名前順ホルダーに常設保管する方式に確定。名前選択方式で懸念していなかった「持ち帰りによる紛失」リスクは、そもそも持ち帰らせない運用にすることで解消した。プロトタイプ・実装もこの方式で進行中（詳細はリポジトリの <code>CODEX_BRIEF.md</code> を参照）。</div>
     </section>
 
     <section id="excel">
@@ -400,7 +400,7 @@ flowchart LR
         <table>
           <thead><tr><th>画面</th><th>できること</th></tr></thead>
           <tbody>
-            <tr><td>貸出登録</td><td>名前選択＋ISBNスキャン、3冊上限の自動チェック、先生の確認ボタン</td></tr>
+            <tr><td>貸出登録</td><td>生徒QRカード＋ISBNスキャン、3冊上限の自動チェック、先生の確認ボタン</td></tr>
             <tr><td>返却処理</td><td>バーコード再スキャン、または貸出中一覧からの選択返却</td></tr>
             <tr><td>蔵書登録</td><td>スキャン→書誌情報の確認→登録。新刊追加時にいつでも使える常設機能</td></tr>
             <tr><td>生徒別履歴</td><td>通算冊数、10冊到達フラグの表示、貸出履歴の一覧</td></tr>
@@ -424,7 +424,7 @@ flowchart LR
         </div>
         <div class="phase">
           <div class="pn">Phase 2</div>
-          <div><h4>Webアプリ版へ移行</h4><p>Excel版で溜まった運用データをもとに、生徒別履歴・延滞管理・レポート機能を強化。名前選択方式の使い勝手（誤選択の頻度など）を評価する。</p></div>
+          <div><h4>Webアプリ版へ移行</h4><p>Excel版で溜まった運用データをもとに、生徒別履歴・延滞管理・レポート機能を強化。実データ投入に向けて、生徒マスタを認証付きバックエンド（Firebase等）に移し、氏名・学年が外部に漏れない構成にする。</p></div>
         </div>
         <div class="phase">
           <div class="pn">Phase 3</div>
