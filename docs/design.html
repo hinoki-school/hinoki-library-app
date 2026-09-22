@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>図書貸出システム設計書</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+:root{
+  --bg:#f4f6f0;
+  --surface:#ffffff;
+  --surface-alt:#eaefe3;
+  --ink:#1a231d;
+  --ink-soft:#546052;
+  --border:#d9ddcd;
+  --accent:#3f6b4a;
+  --accent-ink:#2a4a33;
+  --accent-soft:#dfe9df;
+  --accent-contrast:#ffffff;
+  --warn:#a2601f;
+  --warn-soft:#f3e5d1;
+  --link:#2f5a8a;
+  --lbl-green:#6f8f4e;
+  --lbl-yellow:#c99a2e;
+  --lbl-orange:#bb5f2c;
+  --lbl-blue:#3f6fa0;
+  --lbl-purple:#83699f;
+  --shadow: 0 1px 2px rgba(20,30,20,.06), 0 6px 20px rgba(20,30,20,.05);
+}
+
+*{box-sizing:border-box;}
+html,body{ background:var(--bg); }
+body{
+  color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  line-height:1.85;
+  font-size:15.5px;
+  margin:0;
+}
+h1,h2,h3{
+  font-family:"Shippori Mincho",serif;
+  color:var(--ink);
+  line-height:1.5;
+}
+.mono{ font-family:"JetBrains Mono",monospace; font-variant-numeric: tabular-nums; }
+
+.page{
+  max-width:820px;
+  margin:0 auto;
+  padding:40px 28px 80px;
+}
+
+/* ---- header ---- */
+.masthead{
+  max-width:760px;
+  margin:0 auto 8px;
+  padding-bottom:28px;
+  border-bottom:1px solid var(--border);
+}
+.masthead .eyebrow{
+  font-family:"JetBrains Mono",monospace;
+  font-size:12px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--accent-ink);
+  background:var(--accent-soft);
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:3px;
+  margin-bottom:18px;
+}
+.masthead h1{
+  font-size:32px;
+  font-weight:700;
+  margin:0 0 10px;
+}
+.masthead .sub{
+  color:var(--ink-soft);
+  font-size:15px;
+  max-width:58ch;
+}
+.masthead .meta{
+  display:flex; gap:18px; flex-wrap:wrap;
+  margin-top:20px;
+  font-size:13px;
+  color:var(--ink-soft);
+}
+.masthead .meta b{ color:var(--ink); font-weight:600; }
+
+.toc{ display:none; }
+
+/* ---- content ---- */
+main{ min-width:0; }
+section{ padding-top:44px; break-inside:auto; }
+section > .num{
+  font-family:"JetBrains Mono",monospace;
+  font-size:12px;
+  color:var(--accent);
+  letter-spacing:.08em;
+  margin-bottom:6px;
+  display:block;
+}
+h2{ font-size:21px; font-weight:600; margin:0 0 6px; break-after:avoid; }
+h2 + .lead{ color:var(--ink-soft); margin:0 0 24px; max-width:62ch; }
+h3{ font-size:15.5px; font-weight:600; margin:28px 0 12px; color:var(--accent-ink); break-after:avoid; }
+p{ margin:0 0 14px; max-width:64ch; }
+ul,ol{ padding-left:1.3em; margin:0 0 14px; }
+li{ margin-bottom:6px; }
+a{ color:var(--link); }
+
+.decisions{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:1px;
+  background:var(--border);
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+  margin-bottom:8px;
+  break-inside:avoid;
+}
+.decisions .item{ background:var(--surface); padding:14px 16px; }
+.decisions .item .k{ font-size:11.5px; color:var(--ink-soft); letter-spacing:.04em; margin-bottom:6px; }
+.decisions .item .v{ font-size:13.5px; font-weight:500; line-height:1.6; }
+
+.diagram{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px 18px 8px;
+  margin:16px 0 24px;
+  break-inside:avoid;
+}
+.diagram svg{ max-width:100%; height:auto; }
+.diagram .cap{
+  font-size:12px;
+  color:var(--ink-soft);
+  padding:10px 4px 4px;
+  border-top:1px solid var(--border);
+  margin-top:14px;
+}
+
+.tablewrap{ margin:0 0 24px; border:1px solid var(--border); border-radius:10px; overflow:hidden; break-inside:avoid; }
+table{ width:100%; border-collapse:collapse; font-size:12.8px; background:var(--surface); }
+thead th{
+  text-align:left; background:var(--surface-alt); color:var(--ink-soft);
+  font-weight:600; font-size:11.5px; letter-spacing:.03em;
+  padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap;
+}
+tbody td{ padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+tbody tr:last-child td{ border-bottom:none; }
+tbody td.key{ font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--accent-ink); white-space:nowrap; }
+
+.swatch-row{ display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 20px; }
+.swatch{
+  display:flex; align-items:center; gap:8px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:20px; padding:5px 12px 5px 6px; font-size:12px;
+}
+.dot{ width:14px; height:14px; border-radius:50%; flex:none; box-shadow:inset 0 0 0 1px rgba(0,0,0,.15); }
+
+.compare{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:10px; break-inside:avoid; }
+.ccard{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
+.ccard h4{ margin:0 0 4px; font-size:14.5px; font-family:"Shippori Mincho",serif; }
+.ccard .tag{
+  display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:20px;
+  background:var(--accent-soft); color:var(--accent-ink); margin-bottom:10px;
+}
+.ccard dl{ margin:0; }
+.ccard dt{ font-size:11px; color:var(--ink-soft); margin-top:8px; }
+.ccard dt:first-child{ margin-top:0; }
+.ccard dd{ margin:2px 0 0; font-size:12.6px; }
+.reco{
+  border-left:3px solid var(--accent); background:var(--accent-soft);
+  border-radius:0 10px 10px 0; padding:12px 16px; font-size:13px; margin:14px 0 8px;
+  break-inside:avoid;
+}
+.reco b{ color:var(--accent-ink); }
+
+.roadmap{ display:grid; gap:0; margin:8px 0 10px; }
+.phase{ display:grid; grid-template-columns:56px 1fr; gap:16px; padding:14px 0; border-top:1px solid var(--border); break-inside:avoid; }
+.phase:first-child{ border-top:none; }
+.phase .pn{ font-family:"JetBrains Mono",monospace; color:var(--accent); font-size:12.5px; padding-top:2px; }
+.phase h4{ margin:0 0 5px; font-size:14px; font-family:"Shippori Mincho",serif; font-weight:600; }
+.phase p{ margin:0; font-size:12.8px; color:var(--ink-soft); max-width:60ch; }
+
+.note{
+  background:var(--warn-soft); border-left:3px solid var(--warn);
+  border-radius:0 10px 10px 0; padding:12px 16px; font-size:12.8px; margin:6px 0 24px;
+  break-inside:avoid;
+}
+
+footer{
+  max-width:760px; margin:56px auto 0; padding-top:20px;
+  border-top:1px solid var(--border); color:var(--ink-soft); font-size:12px;
+}
+
+@media print{
+  html,body{ background:#ffffff; }
+  .page{ max-width:none; padding:0; }
+  a{ color:var(--ink); text-decoration:none; }
+  .diagram, .note, .reco, .compare, .decisions, .tablewrap, .phase{ break-inside:avoid; }
+  section{ break-inside:auto; }
+  h2{ break-before:auto; }
+  @page{ size:A4; margin:16mm 14mm; }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="masthead">
+    <span class="eyebrow">Hinoki Educational Services / 図書貸出運用</span>
+    <h1>図書貸出システム設計書</h1>
+    <p class="sub">紙の貸出票に生徒が自分で記入するステップは残したまま、ISBNバーコードの読み取りで転記作業と履歴管理を効率化するための、全体運用フローとシステム設計案。</p>
+    <div class="meta">
+      <span><b>対象</b> 学年別グループ運用（3・4年生など）</span>
+      <span><b>方式</b> Excel版 / Webアプリ版の2案</span>
+      <span><b>更新</b> 2026-09-14</span>
+    </div>
+  </div>
+
+  <main>
+
+    <section id="summary">
+      <span class="num">01</span>
+      <h2>確認した要件</h2>
+      <p class="lead">ヒアリングで固まった前提条件。以降の設計はすべてこの6点を土台にしている。</p>
+      <div class="decisions">
+        <div class="item"><div class="k">解決したい課題</div><div class="v">貸出・返却履歴の把握／延滞管理／蔵書管理／集計レポート／10冊ごとの達成記録</div></div>
+        <div class="item"><div class="k">紙の記入</div><div class="v">生徒が自分で書くステップは維持する</div></div>
+        <div class="item"><div class="k">生徒の特定</div><div class="v">IDカードなし → 画面から名前選択が現実的（コスト比較のうえ採用）</div></div>
+        <div class="item"><div class="k">10冊達成メッセージ</div><div class="v">まずは記録・可視化のみ。自動送信は次フェーズ</div></div>
+        <div class="item"><div class="k">書誌データの登録</div><div class="v">初回は全冊スキャンが必要。以後も使える「スキャン→確認→登録」の仕組みを常設</div></div>
+        <div class="item"><div class="k">返却時の運用</div><div class="v">スキャンあり／なし、両方に対応できる作りにする</div></div>
+      </div>
+      <p style="color:var(--ink-soft); font-size:13px;">機材は今回新規に用意する前提。外部の図書館向けサービスは使わず、自前のExcel／アプリで完結させる。</p>
+    </section>
+
+    <section id="flow">
+      <span class="num">02</span>
+      <h2>運用フロー全体像</h2>
+      <p class="lead">「蔵書登録」「貸出」「返却」の3つの流れに分けて設計する。デジタル化する部分を追加しつつ、それ以外は現状の紙運用をそのまま踏襲する。</p>
+
+      <h3>① 蔵書登録フロー（初回一括＋新刊追加の両方で使う）</h3>
+      <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    A[新しい本が届く] --> B[背表紙裏のISBNを\nバーコードスキャン]
+    B --> C{書誌マスタに\n同じISBNがあるか}
+    C -- あり --> D[既存データを流用]
+    C -- なし --> E[タイトル・著者を\n自動取得 or 手入力]
+    D --> F[スタッフが内容を確認]
+    E --> F
+    F --> G[ラベル色・分類を設定]
+    G --> H[書誌マスタに登録確定]
+</pre>
+        <div class="cap">既存の色ラベル運用（緑・黄・橙・青・紫）はそのまま書誌マスタの項目として引き継ぐ。</div>
+      </div>
+
+      <h3>② 貸出フロー</h3>
+      <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    A[生徒が本を選ぶ] --> B[紙の貸出票に記入\n名前・書名・貸出日]
+    B --> C[端末で自分の\n名前を選択]
+    C --> D[本のISBNをスキャン]
+    D --> E{貸出中が\n3冊以内か}
+    E -- 超過 --> F[エラー表示\nこれ以上は借りられません]
+    E -- OK --> G[貸出日・返却期限\nを自動記録]
+    G --> H[先生が確認]
+    H --> I[貸出登録 完了]
+</pre>
+        <div class="cap">紙への記入は今まで通り。端末での操作は並行して行う追加のステップで、書名の手入力は発生しない。</div>
+      </div>
+
+      <h3>③ 返却フロー（スキャンあり／なし両対応）</h3>
+      <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    A[生徒が返却BOXへ入れる] --> B{その場でスキャン\nできるか}
+    B -- できる --> C[ISBNを再スキャン]
+    C --> D[貸出中レコードを自動検索]
+    D --> E[返却日を自動記録]
+    B -- できない --> F[紙の返却日欄のみ記入]
+    F --> G[スタッフが回収時に\nまとめて一覧から返却処理]
+    E --> H[冊数カウント加算\n10冊到達なら可視化]
+    G --> H
+</pre>
+        <div class="cap">忙しい時間帯はBOXに入れるだけでよく、後からスタッフがまとめて処理できる。</div>
+      </div>
+    </section>
+
+    <section id="data">
+      <span class="num">03</span>
+      <h2>データ設計</h2>
+      <p class="lead">3つのマスタ／ログで構成する。生徒マスタは既存の共有Excelをそのまま参照し、新しいIDは発行しない。</p>
+
+      <h3>生徒マスタ（既存の生徒管理Excelを参照）</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>項目</th><th>内容</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td class="key">生徒ID</td><td>生徒管理Excelの既存ID</td><td>主キー。新規発行しない</td></tr>
+            <tr><td class="key">氏名</td><td>生徒氏名</td><td>名前選択リストに表示</td></tr>
+            <tr><td class="key">学年</td><td>学年</td><td>貸出票のグループ分けに使用</td></tr>
+            <tr><td class="key">保護者連絡先</td><td>メール等</td><td>現時点では未使用。将来の通知機能のために保持だけしておく</td></tr>
+            <tr><td class="key">在籍状態</td><td>在籍／退会</td><td>退会者を選択肢から自動除外</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>書誌マスタ</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>項目</th><th>内容</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td class="key">ISBN</td><td>13桁バーコード番号</td><td>主キー</td></tr>
+            <tr><td class="key">書名 / 著者</td><td></td><td>蔵書登録フローで確定</td></tr>
+            <tr><td class="key">ラベル色</td><td>緑・黄・橙・青・紫</td><td>既存の色ラベル運用を踏襲</td></tr>
+            <tr><td class="key">登録日</td><td></td><td>初回スキャン時に自動記録</td></tr>
+            <tr><td class="key">在庫状態</td><td>在架／貸出中／紛失</td><td>貸出ログと連動して自動更新</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="swatch-row">
+        <span class="swatch"><span class="dot" style="background:var(--lbl-green)"></span>緑ラベル</span>
+        <span class="swatch"><span class="dot" style="background:var(--lbl-yellow)"></span>黄ラベル</span>
+        <span class="swatch"><span class="dot" style="background:var(--lbl-orange)"></span>橙ラベル</span>
+        <span class="swatch"><span class="dot" style="background:var(--lbl-blue)"></span>青ラベル</span>
+        <span class="swatch"><span class="dot" style="background:var(--lbl-purple)"></span>紫ラベル</span>
+      </div>
+
+      <h3>貸出ログ</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>項目</th><th>内容</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td class="key">貸出ID</td><td>連番</td><td>主キー</td></tr>
+            <tr><td class="key">生徒ID / ISBN</td><td>各マスタを参照</td><td></td></tr>
+            <tr><td class="key">貸出日</td><td>スキャン当日</td><td>自動記録</td></tr>
+            <tr><td class="key">返却期限</td><td>貸出日 + 14日</td><td>自動計算</td></tr>
+            <tr><td class="key">返却日</td><td>スキャン or 手動入力</td><td>空欄＝貸出中</td></tr>
+            <tr><td class="key">ステータス</td><td>貸出中／返却済／延滞</td><td>当日日付と返却期限から自動判定</td></tr>
+            <tr><td class="key">確認</td><td>先生のサイン相当</td><td>紙のサイン運用を踏襲</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="student">
+      <span class="num">04</span>
+      <h2>生徒の特定方式：コスト比較</h2>
+      <p class="lead">IDカードを配らない前提で、実装・運用の負担を比較した。</p>
+      <div class="compare">
+        <div class="ccard">
+          <span class="tag">採用案</span>
+          <h4>画面から名前を選択／検索</h4>
+          <dl>
+            <dt>初期実装コスト</dt><dd>低 — 生徒マスタを画面に読み込むだけ。印刷物や配布作業が不要</dd>
+            <dt>運用コスト</dt><dd>低 — 入退会時にマスタを更新するだけ</dd>
+            <dt>精度・速度</dt><dd>中 — 同姓や似た名前の誤選択に注意。写真のような学年別少人数運用なら十分実用的</dd>
+          </dl>
+        </div>
+        <div class="ccard">
+          <span class="tag" style="background:var(--surface-alt); color:var(--ink-soft);">将来の選択肢</span>
+          <h4>生徒用QRカードを発行</h4>
+          <dl>
+            <dt>初期実装コスト</dt><dd>中 — カード作成・印刷・ラミネート・配布作業が発生</dd>
+            <dt>運用コスト</dt><dd>中〜高 — 紛失時の再発行、入会のたびの発行が継続的に発生</dd>
+            <dt>精度・速度</dt><dd>高 — スキャンのみで一意に特定でき、選び間違いがほぼない</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="reco"><b>推奨：</b> まず「名前選択方式」で運用を開始し、生徒数の増加や選択ミスが実際に問題になった段階でQRカードへ移行する二段階アプローチ。初期コストを抑えつつ、必要になったときだけ精度を上げられる。</div>
+    </section>
+
+    <section id="excel">
+      <span class="num">05</span>
+      <h2>Excel版の設計</h2>
+      <p class="lead">追加のシステム開発をせず、最短で始められる案。</p>
+      <h3>構成</h3>
+      <ul>
+        <li><b>生徒マスタシート</b> — 既存の生徒管理Excelから参照（コピーまたはリンク）</li>
+        <li><b>書誌マスタシート</b> — ISBN・書名・著者・ラベル色・在庫状態</li>
+        <li><b>貸出ログシート</b> — 貸出・返却の全レコード。関数で返却期限・ステータスを自動計算</li>
+        <li><b>ダッシュボードシート</b> — ピボットテーブルと条件付き書式で「延滞リスト」「生徒別冊数」「10冊到達リスト」を自動表示</li>
+      </ul>
+      <h3>運用のポイント</h3>
+      <p>USB／Bluetoothのバーコードスキャナは、パソコンからは「キーボード入力」として認識される。セルにカーソルを合わせてバーコードを読み取るだけでISBNが自動入力されるため、カメラアプリのような開発は不要。VBA（またはGoogle Apps Script）で、スキャン後に自動で書誌マスタを照合し、貸出ログへ行を追加する処理を組む。蔵書登録も専用の入力フォームで「スキャン→内容確認→登録」の3ステップを再現する。</p>
+      <div class="note">向いているケース：すぐに始めたい／追加のシステム開発コストを抑えたい／既存の生徒管理Excelとの親和性を重視したい場合。</div>
+    </section>
+
+    <section id="webapp">
+      <span class="num">06</span>
+      <h2>Webアプリ版の設計</h2>
+      <p class="lead">より多くの学年・拠点での同時運用や、将来の機能拡張を見据えた案。</p>
+      <h3>画面構成</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>画面</th><th>できること</th></tr></thead>
+          <tbody>
+            <tr><td>貸出登録</td><td>名前選択＋ISBNスキャン、3冊上限の自動チェック、先生の確認ボタン</td></tr>
+            <tr><td>返却処理</td><td>バーコード再スキャン、または貸出中一覧からの選択返却</td></tr>
+            <tr><td>蔵書登録</td><td>スキャン→書誌情報の確認→登録。新刊追加時にいつでも使える常設機能</td></tr>
+            <tr><td>生徒別履歴</td><td>通算冊数、10冊到達フラグの表示、貸出履歴の一覧</td></tr>
+            <tr><td>管理ダッシュボード</td><td>延滞一覧、学年別・本別の集計、CSVエクスポート</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>データ連携・技術メモ</h3>
+      <p>生徒マスタは共有Excelを定期的にCSV取り込みして同期する（将来的に自動連携も検討可）。バーコードの読み取りは、タブレットのカメラ・USB/Bluetoothスキャナの両方に対応できる作りにしておくと、機材選びの自由度が上がる。バックエンドは生徒マスタ・書誌マスタ・貸出ログの3テーブルを持つ小規模な構成で十分。</p>
+      <div class="note">向いているケース：複数の学年・拠点で同時に使う／将来的にQRカード運用や保護者への自動通知まで拡張したい場合。</div>
+    </section>
+
+    <section id="roadmap">
+      <span class="num">07</span>
+      <h2>導入ロードマップ</h2>
+      <p class="lead">一気に作り切るのではなく、Excel版から始めて段階的に育てる進め方を推奨する。</p>
+      <div class="roadmap">
+        <div class="phase">
+          <div class="pn">Phase 1</div>
+          <div><h4>Excel版で試験導入</h4><p>紙の記入は継続しつつ、バーコードスキャナで全蔵書を一括登録。貸出・返却・蔵書登録の運用を実地でテストする。</p></div>
+        </div>
+        <div class="phase">
+          <div class="pn">Phase 2</div>
+          <div><h4>Webアプリ版へ移行</h4><p>Excel版で溜まった運用データをもとに、生徒別履歴・延滞管理・レポート機能を強化。名前選択方式の使い勝手（誤選択の頻度など）を評価する。</p></div>
+        </div>
+        <div class="phase">
+          <div class="pn">Phase 3</div>
+          <div><h4>必要に応じて拡張</h4><p>選択ミスや生徒数の増加が課題になればQRカード方式へ切り替え。保護者への10冊達成メッセージの自動配信（メール等）もこの段階で追加を検討する。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="equipment">
+      <span class="num">08</span>
+      <h2>必要機材</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>機材</th><th>用途</th><th>目安</th></tr></thead>
+          <tbody>
+            <tr><td>バーコードスキャナ（USB/Bluetooth・キーボード入力型）</td><td>ISBN読み取り（貸出・返却・蔵書登録すべてで共通利用）</td><td>1台 2,000〜5,000円程度</td></tr>
+            <tr><td>タブレット or 安価なノートPC</td><td>貸出／返却／登録画面の操作端末</td><td>学年グループごとに1台が目安</td></tr>
+            <tr><td>Wi-Fi環境</td><td>Webアプリ版を使う場合に必要</td><td>Excel版はローカル運用も可能</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="open">
+      <span class="num">09</span>
+      <h2>次に決めること</h2>
+      <ul>
+        <li>10冊達成メッセージを将来自動配信する場合の手段（メール／LINEなど）と、保護者連絡先の利用に関する同意の取り方</li>
+        <li>Excel版・Webアプリ版のどちらから着手するか、着手時期</li>
+        <li>バーコードスキャナ・タブレットの具体的な機種選定と台数</li>
+        <li>書誌マスタの初回一括スキャン作業を、いつ・誰が行うか</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>図書貸出システム設計書 — Hinoki Educational Services 内部検討資料</footer>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose', fontFamily: 'Zen Kaku Gothic New, sans-serif' });
+</script>
+</body>
+</html>
