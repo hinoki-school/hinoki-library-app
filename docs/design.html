@@ -363,7 +363,7 @@ flowchart LR
           </dl>
         </div>
         <div class="ccard">
-          <span class="tag" style="background:var(--surface-alt); color:var(--ink-soft);">不採用</span>
+          <span class="tag" style="background:var(--surface-alt); color:var(--ink-soft);">フォールバックとして採用</span>
           <h4>画面から名前を選択／検索</h4>
           <dl>
             <dt>初期実装コスト</dt><dd>低 — 生徒マスタを画面に読み込むだけ。印刷物や配布作業が不要</dd>
@@ -372,7 +372,7 @@ flowchart LR
           </dl>
         </div>
       </div>
-      <div class="reco"><b>採用：</b> 生徒用QRカードを発行し、教室内の名前順ホルダーに常設保管する方式に確定。名前選択方式で懸念していなかった「持ち帰りによる紛失」リスクは、そもそも持ち帰らせない運用にすることで解消した。プロトタイプ・実装もこの方式で進行中（詳細はリポジトリの <code>CODEX_BRIEF.md</code> を参照）。</div>
+      <div class="reco"><b>採用：</b> 生徒用QRカードを発行し、教室内の名前順ホルダーに常設保管する方式に確定。名前選択方式で懸念していなかった「持ち帰りによる紛失」リスクは、そもそも持ち帰らせない運用にすることで解消した。ただし<b>名前選択は完全に廃止するのではなく、カメラの不調やカードの破損時に使えるフォールバックとして画面に残す</b>（プロトタイプでも貸出画面にQRスキャンと名前検索を両方表示している）。詳細はリポジトリの <code>CODEX_BRIEF.md</code> を参照。</div>
     </section>
 
     <section id="excel">
