@@ -1,0 +1,10 @@
+node_modules/
+.npm-cache/
+.test-tools/
+.firebase/
+*-debug.log
+test-results/
+playwright-report/
+.env
+.env.*
+firebase-config.json

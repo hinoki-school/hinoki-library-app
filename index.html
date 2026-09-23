@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>図書貸出ステーション</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
@@ -221,8 +226,36 @@ td{ padding:9px 12px; border-top:1px solid var(--border); }
   opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
 }
 .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+[hidden]{ display:none !important; }
+#appShell{ display:flex; flex-direction:column; flex:1; min-height:0; }
+#authPanel{ width:min(92%,440px); margin:40px auto; overflow-y:auto; }
+#authPanel h1{ font-size:22px; }
+#loginForm{ display:grid; gap:12px; }
+#loginForm label{ display:grid; gap:5px; font-size:14px; }
+#sessionControls{ display:flex; align-items:center; gap:10px; padding:8px 18px; background:var(--surface); font-size:13px; flex-wrap:wrap; }
+#sessionStatus{ flex:1; }
+#authMessage{ line-height:1.8; }
+.search{ min-width:0; }
 </style>
+</head>
+<body>
 
+<section id="authPanel" class="picker" aria-labelledby="authTitle">
+  <h1 id="authTitle">📚 図書貸出ステーション</h1>
+  <p id="authMessage" role="status">接続設定を確認しています…</p>
+  <form id="loginForm" hidden>
+    <label>メールアドレス<input id="email" class="search" type="email" autocomplete="username" required></label>
+    <label>パスワード<input id="password" class="search" type="password" autocomplete="current-password" required></label>
+    <button id="loginButton" class="primary-btn" type="submit">ログイン</button>
+  </form>
+  <noscript>このアプリを使用するにはJavaScriptを有効にしてください。</noscript>
+</section>
+<div id="sessionControls" hidden>
+  <span id="sessionStatus" role="status"></span>
+  <button id="seedDemo" class="ghost-btn" hidden>ダミーデータを初期登録</button>
+  <button id="logoutButton" class="ghost-btn">ログアウト</button>
+</div>
+<div id="appShell" hidden>
 <header>
   <h1>📚 図書貸出ステーション</h1>
   <div class="tabs" role="tablist">
@@ -285,6 +318,7 @@ td{ padding:9px 12px; border-top:1px solid var(--border); }
     </div>
   </section>
 </main>
+</div>
 
 <div class="cam-overlay" id="camOverlay" hidden>
   <div class="cam-box">
@@ -303,403 +337,6 @@ td{ padding:9px 12px; border-top:1px solid var(--border); }
 
 <div class="toast" id="toast"></div>
 
-<script>
-const STUDENTS = [
-  {id:"D-1001", name:"サンプル 太郎", grade:"3年"},
-  {id:"D-1002", name:"テスト 花子",   grade:"3年"},
-  {id:"D-1003", name:"見本 一郎",     grade:"3年"},
-  {id:"D-1004", name:"架空 さくら",   grade:"3年"},
-  {id:"D-1005", name:"仮名 次郎",     grade:"4年"},
-  {id:"D-1006", name:"試験 美咲",     grade:"4年"},
-  {id:"D-1007", name:"練習 健太",     grade:"4年"},
-  {id:"D-1008", name:"模擬 ゆうと",   grade:"4年"},
-  {id:"D-1009", name:"確認 陽菜",     grade:"5年"},
-  {id:"D-1010", name:"検証 大輝",     grade:"5年"},
-  {id:"D-1011", name:"仮想 結衣",     grade:"5年"},
-  {id:"D-1012", name:"試作 蓮",       grade:"6年"},
-];
-const BOOKS = [
-  {id:"9789999100007", title:"かいけつゾロリのドラゴンたいじ", author:"原ゆたか"},
-  {id:"9789999223454", title:"ママだいすき", author:"きむらゆういち"},
-  {id:"9789999345675", title:"ランドセルのはるやすみ", author:"岡田よしたか"},
-  {id:"9789999467896", title:"ストーブのふゆやすみ", author:"岡田よしたか"},
-  {id:"9789999589017", title:"サッカーが楽しくなる本", author:"少年サッカー編集部"},
-  {id:"9789999601238", title:"ちいさなちいさな王様", author:"アクセル・ハッケ"},
-  {id:"9789999723459", title:"もしかしたら名探偵", author:"杉山亮"},
-  {id:"9789999845670", title:"いつのまにか名探偵", author:"杉山亮"},
-  {id:"9789999967891", title:"ノラネコぐんだん アイスのくに", author:"工藤ノリコ"},
-  {id:"9789999189019", title:"はじめてのキャンプ", author:"林明子"},
-];
-const MAX_BOOKS = 3;
-const LOAN_DAYS = 14;
-const STORAGE_KEY = "hinoki-library-loans-v1";
-
-function loadLoans(){
-  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }catch(e){ return []; }
-}
-function saveLoans(loans){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(loans)); }catch(e){}
-}
-let loans = loadLoans();
-
-function todayISO(){ return new Date().toISOString().slice(0,10); }
-function addDays(iso, n){
-  const d = new Date(iso); d.setDate(d.getDate()+n);
-  return d.toISOString().slice(0,10);
-}
-function fmt(iso){
-  const [y,m,d] = iso.split("-");
-  return `${m}/${d}`;
-}
-function studentById(id){ return STUDENTS.find(s=>s.id===id); }
-function bookById(id){ return BOOKS.find(b=>b.id===id); }
-function activeLoansFor(studentId){
-  return loans.filter(l=>l.studentId===studentId && !l.returnDate);
-}
-function isOverdue(loan){
-  return !loan.returnDate && loan.dueDate < todayISO();
-}
-
-/* ---------------- tabs ---------------- */
-const tabs = document.querySelectorAll(".tab");
-tabs.forEach(t=>t.addEventListener("click", ()=>{
-  tabs.forEach(x=>x.setAttribute("aria-selected", x===t ? "true":"false"));
-  ["lend","return","status"].forEach(name=>{
-    document.getElementById("panel-"+name).hidden = (name !== t.dataset.tab);
-  });
-  if(t.dataset.tab==="return") renderReturnPanel();
-  if(t.dataset.tab==="status") renderStatusPanel();
-}));
-
-/* ---------------- toast ---------------- */
-let toastTimer;
-function toast(msg){
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>el.classList.remove("show"), 2200);
-}
-
-/* ---------------- lending flow ---------------- */
-let currentStudent = null;
-let cart = []; // book ids
-
-function renderStudentList(filter){
-  const list = document.getElementById("studentList");
-  const f = (filter||"").trim();
-  const items = STUDENTS.filter(s=> !f || s.name.includes(f) || s.id.includes(f));
-  list.innerHTML = items.map(s=>`
-    <div class="student-row" data-id="${s.id}">
-      <span class="grade-pill">${s.grade}</span>
-      <span class="name">${s.name}</span>
-      <span class="id mono">${s.id}</span>
-    </div>`).join("") || `<div class="empty-state">該当する生徒がいません</div>`;
-  list.querySelectorAll(".student-row").forEach(row=>{
-    row.addEventListener("click", ()=> selectStudent(row.dataset.id));
-  });
-}
-document.getElementById("studentSearch").addEventListener("input", e=>renderStudentList(e.target.value));
-
-function selectStudent(id){
-  const s = studentById(id);
-  if(!s){ toast("この生徒IDは登録されていません: "+id); return; }
-  currentStudent = s;
-  cart = [];
-  document.getElementById("lendPicker").hidden = true;
-  document.getElementById("lendActive").hidden = false;
-  renderCurrentStudent();
-  renderCart();
-}
-function deselectStudent(){
-  currentStudent = null; cart = [];
-  document.getElementById("lendPicker").hidden = false;
-  document.getElementById("lendActive").hidden = true;
-  document.getElementById("studentSearch").value = "";
-  renderStudentList();
-}
-function renderCurrentStudent(){
-  const s = currentStudent;
-  const already = activeLoansFor(s.id).length;
-  document.getElementById("currentStudentCard").innerHTML = `
-    <div class="avatar">${s.name[0]}</div>
-    <div class="info">
-      <div class="name">${s.name}</div>
-      <div class="meta">${s.grade} ・ 現在の貸出中: ${already}冊 ・ ID <span class="mono">${s.id}</span></div>
-    </div>
-    <button class="ghost-btn" id="switchStudent">生徒を変更</button>
-  `;
-  document.getElementById("switchStudent").addEventListener("click", deselectStudent);
-}
-function renderCart(){
-  const already = activeLoansFor(currentStudent.id).length;
-  const remaining = MAX_BOOKS - already;
-  const list = document.getElementById("cartList");
-  const empty = document.getElementById("cartEmpty");
-  list.innerHTML = cart.map((bid,idx)=>{
-    const b = bookById(bid);
-    return `<div class="cart-item">
-      <div><div class="title">${b.title}</div><div class="isbn mono">${b.id}</div></div>
-      <button class="remove" data-idx="${idx}">取り消す</button>
-    </div>`;
-  }).join("");
-  empty.hidden = cart.length>0;
-  list.querySelectorAll(".remove").forEach(btn=>{
-    btn.addEventListener("click", ()=>{ cart.splice(+btn.dataset.idx,1); renderCart(); });
-  });
-  const note = document.getElementById("limitNote");
-  const total = already + cart.length;
-  note.textContent = `1人3冊まで借りられます（現在 ${total} / 3）`;
-  note.classList.toggle("full", total>=MAX_BOOKS);
-  document.getElementById("confirmLend").disabled = cart.length===0 || total>MAX_BOOKS;
-  document.getElementById("scanBookBtn").disabled = total>=MAX_BOOKS;
-}
-
-document.getElementById("confirmLend").addEventListener("click", ()=>{
-  const date = todayISO();
-  cart.forEach(bid=>{
-    loans.push({
-      loanId: "L-"+Date.now()+"-"+bid,
-      studentId: currentStudent.id,
-      bookId: bid,
-      loanDate: date,
-      dueDate: addDays(date, LOAN_DAYS),
-      returnDate: null,
-    });
-  });
-  saveLoans(loans);
-  toast(`${currentStudent.name} さんに ${cart.length}冊 貸出登録しました`);
-  deselectStudent();
-  updateActiveCountBadge();
-});
-
-/* ---------------- return flow ---------------- */
-function renderReturnPanel(){
-  const list = document.getElementById("loanList");
-  const active = loans.filter(l=>!l.returnDate).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
-  if(active.length===0){
-    list.innerHTML = `<div class="empty-state">現在、貸出中の本はありません</div>`;
-    return;
-  }
-  list.innerHTML = active.map(l=>{
-    const s = studentById(l.studentId), b = bookById(l.bookId);
-    const overdue = isOverdue(l);
-    return `<div class="loan-row" data-loan="${l.loanId}">
-      <span class="who">${s ? s.name : l.studentId}</span>
-      <span class="book">${b ? b.title : l.bookId}<span class="isbn mono">${l.bookId}</span></span>
-      <span class="pill ${overdue?'overdue':'ok'}">${overdue?'延滞':'返却期限 '+fmt(l.dueDate)}</span>
-      <button class="return-btn" data-loan="${l.loanId}">返却する</button>
-    </div>`;
-  }).join("");
-  list.querySelectorAll(".return-btn").forEach(btn=>{
-    btn.addEventListener("click", ()=> returnLoan(btn.dataset.loan));
-  });
-}
-function returnLoan(loanId){
-  const l = loans.find(x=>x.loanId===loanId);
-  if(!l || l.returnDate) return;
-  l.returnDate = todayISO();
-  saveLoans(loans);
-  const s = studentById(l.studentId), b = bookById(l.bookId);
-  toast(`${s?s.name:l.studentId} さんの「${b?b.title:l.bookId}」を返却処理しました`);
-  renderReturnPanel();
-  updateActiveCountBadge();
-}
-function returnByBookId(bookId){
-  const l = loans.find(x=>x.bookId===bookId && !x.returnDate);
-  if(!l){ toast("この本は現在貸出中ではありません: "+bookId); return; }
-  returnLoan(l.loanId);
-}
-
-/* ---------------- status panel ---------------- */
-function renderStatusPanel(){
-  const active = loans.filter(l=>!l.returnDate);
-  const overdue = active.filter(isOverdue);
-  document.getElementById("statActive").textContent = active.length;
-  document.getElementById("statOverdue").textContent = overdue.length;
-  document.getElementById("statTotal").textContent = loans.length;
-
-  const atbody = document.querySelector("#activeTable tbody");
-  atbody.innerHTML = active.sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).map(l=>{
-    const s = studentById(l.studentId), b = bookById(l.bookId);
-    const od = isOverdue(l);
-    return `<tr>
-      <td>${s?s.name:l.studentId}</td>
-      <td>${b?b.title:l.bookId}</td>
-      <td class="mono">${fmt(l.loanDate)}</td>
-      <td class="mono">${fmt(l.dueDate)}</td>
-      <td>${od ? '<span class="pill overdue">延滞</span>' : '<span class="pill ok">貸出中</span>'}</td>
-    </tr>`;
-  }).join("") || `<tr><td colspan="5" style="color:var(--ink-soft); text-align:center;">貸出中の本はありません</td></tr>`;
-
-  const stbody = document.querySelector("#studentTable tbody");
-  stbody.innerHTML = STUDENTS.map(s=>{
-    const count = loans.filter(l=>l.studentId===s.id).length;
-    const milestone = count>0 && count % 10 === 0;
-    return `<tr>
-      <td>${s.name}</td>
-      <td>${s.grade}</td>
-      <td class="mono">${count}</td>
-      <td>${milestone ? '<span class="milestone">★ 10冊達成</span>' : ''}</td>
-    </tr>`;
-  }).join("");
-}
-function updateActiveCountBadge(){
-  const n = loans.filter(l=>!l.returnDate).length;
-  const badge = document.getElementById("activeCount");
-  badge.hidden = n===0;
-  badge.textContent = n;
-}
-
-/* ---------------- camera / QR scan ---------------- */
-let camStream = null;
-let camRAF = null;
-let camMode = null; // 'student' | 'book' | 'return'
-
-const camOverlay = document.getElementById("camOverlay");
-const camVideo = document.getElementById("camVideo");
-const camCanvas = document.getElementById("camCanvas");
-const camErr = document.getElementById("camErr");
-const camLabel = document.getElementById("camLabel");
-const camDebug = document.getElementById("camDebug");
-let frameCount = 0;
-
-document.querySelectorAll("[data-scan]").forEach(btn=>{
-  btn.addEventListener("click", ()=> openScanner(btn.dataset.scan));
-});
-document.getElementById("camCancel").addEventListener("click", closeScanner);
-
-// 生徒カードはQR（jsQR）、本はISBNバーコード=EAN-13（Quagga）を読む。
-// モードによって読み取りエンジンを切り替える。
-const BARCODE_MODES = new Set(["book","return"]);
-let scanBusy = false;
-let scanStopped = false;
-
-async function openScanner(mode){
-  camMode = mode;
-  camErr.hidden = true;
-  scanStopped = false;
-  camLabel.textContent = mode==="student" ? "生徒カードのQRを枠内に写してください"
-                        : mode==="return" ? "返却する本の裏表紙のISBNバーコードを枠内に写してください"
-                        : "本の裏表紙のISBNバーコードを枠内に写してください";
-  document.querySelector(".cam-box").classList.toggle("wide", BARCODE_MODES.has(mode));
-  camOverlay.hidden = false;
-  frameCount = 0;
-  lastBarcodeGuess = null;
-  barcodeGuessStreak = 0;
-  try{
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:"environment", width:{ideal:1920}, height:{ideal:1080}, focusMode:"continuous" }
-    });
-    camVideo.srcObject = camStream;
-    await camVideo.play();
-    const track = camStream.getVideoTracks()[0];
-    const settings = track ? track.getSettings() : {};
-    camDebug.textContent = `解像度 ${settings.width||"?"}x${settings.height||"?"} / 判定中…`;
-    if(BARCODE_MODES.has(mode)) tickScanBarcode(); else tickScanQR();
-  }catch(err){
-    camErr.hidden = false;
-    camErr.textContent = "カメラを起動できませんでした（権限が許可されているか、iPadのSafariで開いているか確認してください）: " + err.message;
-  }
-}
-function closeScanner(){
-  camOverlay.hidden = true;
-  scanStopped = true;
-  if(camRAF) cancelAnimationFrame(camRAF);
-  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-}
-function grabFrame(){
-  camCanvas.width = camVideo.videoWidth;
-  camCanvas.height = camVideo.videoHeight;
-  const ctx = camCanvas.getContext("2d");
-  ctx.drawImage(camVideo, 0, 0, camCanvas.width, camCanvas.height);
-  return ctx;
-}
-function tickScanQR(){
-  if(scanStopped) return;
-  if(camVideo.readyState === camVideo.HAVE_ENOUGH_DATA){
-    const ctx = grabFrame();
-    const imgData = ctx.getImageData(0,0,camCanvas.width, camCanvas.height);
-    const code = window.jsQR ? jsQR(imgData.data, imgData.width, imgData.height, {inversionAttempts:"attemptBoth"}) : null;
-    frameCount++;
-    if(frameCount % 15 === 0){
-      camDebug.textContent = `解像度 ${camCanvas.width}x${camCanvas.height} / ${frameCount}フレーム処理済み / 未検出`;
-    }
-    if(code && code.data){
-      handleScan(code.data.trim());
-      return;
-    }
-  }
-  camRAF = requestAnimationFrame(tickScanQR);
-}
-// EAN-13には誤り訂正がなく、印刷のにじみや手ブレで1桁だけ誤読することがある。
-// 誤読でも別の登録済みISBNとたまたま一致すると気づかずに違う本が追加されてしまうため、
-// 同じ値を連続2回読めてから確定する（1回だけの読み取りは採用しない）。
-let lastBarcodeGuess = null;
-let barcodeGuessStreak = 0;
-const BARCODE_CONFIRM_STREAK = 2;
-
-function tickScanBarcode(){
-  if(scanStopped) return;
-  if(!scanBusy && camVideo.readyState === camVideo.HAVE_ENOUGH_DATA && window.Quagga){
-    scanBusy = true;
-    grabFrame();
-    const dataUrl = camCanvas.toDataURL("image/png");
-    Quagga.decodeSingle({
-      decoder: { readers: ["ean_reader"] },
-      locate: true,
-      src: dataUrl,
-    }, function(result){
-      scanBusy = false;
-      if(scanStopped) return;
-      const code = result && result.codeResult && result.codeResult.code ? result.codeResult.code.trim() : null;
-      if(code){
-        if(code === lastBarcodeGuess){
-          barcodeGuessStreak++;
-        } else {
-          lastBarcodeGuess = code;
-          barcodeGuessStreak = 1;
-        }
-        camDebug.textContent = `読み取り中: ${code}（確認 ${barcodeGuessStreak}/${BARCODE_CONFIRM_STREAK}）`;
-        if(barcodeGuessStreak >= BARCODE_CONFIRM_STREAK){
-          lastBarcodeGuess = null;
-          barcodeGuessStreak = 0;
-          handleScan(code);
-          return;
-        }
-      } else {
-        lastBarcodeGuess = null;
-        barcodeGuessStreak = 0;
-      }
-      camRAF = requestAnimationFrame(tickScanBarcode);
-    });
-  } else {
-    camRAF = requestAnimationFrame(tickScanBarcode);
-  }
-}
-function handleScan(data){
-  closeScanner();
-  if(camMode==="student"){
-    if(!studentById(data)){ toast("未登録の生徒QRです: "+data); return; }
-    selectStudent(data);
-  } else if(camMode==="book"){
-    const already = activeLoansFor(currentStudent.id).length;
-    const total = already + cart.length;
-    if(!bookById(data)){ toast("未登録のISBNです: "+data); return; }
-    if(total>=MAX_BOOKS){ toast("すでに上限の3冊です"); return; }
-    if(cart.includes(data)){ toast("すでにカートに入っています"); return; }
-    cart.push(data);
-    renderCart();
-    toast(bookById(data).title + " を追加しました");
-  } else if(camMode==="return"){
-    returnByBookId(data);
-  }
-}
-
-/* ---------------- manual fallback for testing without camera ---------------- */
-window.__devScan = handleScan; // for console testing if camera unavailable
-
-/* ---------------- init ---------------- */
-renderStudentList();
-updateActiveCountBadge();
-</script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
