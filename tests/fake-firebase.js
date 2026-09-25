@@ -10,12 +10,13 @@ export async function connectFirebase() {
   let authCallback, nextId = 0;
   const auth = { currentUser: null };
   const snapshot = path => ({ id: path.split('/').at(-1), exists: () => data.has(path), data: () => structuredClone(data.get(path)), metadata: { fromCache: false, hasPendingWrites: false } });
-  function emit(path) {
+  function emit(path, metadata = {}) {
     for (const callback of observers.get(path) || []) {
       const result = path.includes('/') ? snapshot(path) : {
         docs: [...data.keys()].filter(key => key.startsWith(path + '/')).map(snapshot),
         metadata: { fromCache: false, hasPendingWrites: false }
       };
+      result.metadata = { ...result.metadata, ...metadata };
       callback(result);
     }
   }
@@ -31,6 +32,7 @@ export async function connectFirebase() {
       return () => observers.get(ref.path).delete(callback);
     },
     async runTransaction(db, callback) {
+      if (window.testWriteGate) await window.testWriteGate;
       if (window.testWriteFail) throw Object.assign(new Error('offline'), { code: 'unavailable' });
       const writes = [];
       const result = await callback({
@@ -44,6 +46,7 @@ export async function connectFirebase() {
     }
   };
   window.testBackend = {
+    emitSnapshot(path, metadata) { emit(path, metadata); },
     revoke() { data.set('staff/test-user', { active: false, role: 'staff' }); emit('staff/test-user'); },
     observerCount() { return [...observers.values()].reduce((sum, set) => sum + set.size, 0); },
     records() { return [...data.entries()]; },

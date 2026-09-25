@@ -256,7 +256,7 @@ async function openScanner(mode){
   }catch(err){
     if (scannerEpoch !== scannerGeneration) return;
     camErr.hidden = false;
-    camErr.textContent = "カメラを起動できませんでした（権限が許可されているか、iPadのSafariで開いているか確認してください）: " + err.message;
+    camErr.textContent = "カメラを起動できませんでした（権限が許可されているか、iPhone／iPadのSafariで開いているか確認してください）: " + err.message;
   }
 }
 function closeScanner(){
@@ -369,6 +369,13 @@ function message(text, showLogin = false) {
   byId('appShell').hidden = true;
 }
 
+function showConnectionWait() {
+  const offline = !navigator.onLine;
+  message(offline
+    ? '通信が切れています。Wi-Fiまたはモバイル通信の接続を確認してください。接続が戻ったら最新の一覧を読み込みます。貸出・返却は一覧を確認してから操作してください。'
+    : 'サーバーとの通信を確認しています。長く続く場合は接続を確認してください。最新の一覧が表示されてから操作してください。');
+  byId('sessionStatus').textContent = offline ? 'オフライン' : '同期中';
+}
 function clearSession() {
   epoch++;
   stops.splice(0).forEach(stop => stop());
@@ -435,7 +442,8 @@ async function mutate(operation, after = () => {}) {
   } finally {
     if (started === epoch) {
       busy = false;
-      byId('sessionStatus').textContent = ready ? '接続済み' : '接続を確認しています…';
+      if (ready) byId('sessionStatus').textContent = '接続済み';
+      else showConnectionWait();
       renderAll();
     }
   }
@@ -458,7 +466,7 @@ function watchUser(user) {
     if (snapshot.metadata.fromCache) {
       serverReady.delete('staff');
       ready = false; closeScanner();
-      message('サーバーとの接続を確認しています…');
+      showConnectionWait();
       byId('seedDemo').hidden = true;
       return;
     }
@@ -492,9 +500,8 @@ function watchUser(user) {
     ready = serverReady.size === 4 && navigator.onLine;
     if (!ready) {
       closeScanner();
-      message('最新のデータを確認しています。接続が戻るまでお待ちください。');
+      showConnectionWait();
       byId('seedDemo').hidden = true;
-      byId('sessionStatus').textContent = '同期中';
       return;
     }
     byId('authPanel').hidden = true;
@@ -543,7 +550,7 @@ byId('seedDemo').addEventListener('click', async () => {
 window.addEventListener('offline', () => {
   if (backend?.auth.currentUser) {
     ready = false; closeScanner();
-    message('通信が切れました。接続が戻ったら最新の一覧を読み込みます。');
+    showConnectionWait();
     byId('seedDemo').hidden = true;
   }
 });

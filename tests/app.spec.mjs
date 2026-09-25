@@ -108,3 +108,78 @@ test('phone layout fits viewport and QR cancel stops a late camera stream', asyn
   await expect.poll(() => page.evaluate(() => window.cameraStopped)).toBe(true);
   await expect(page.locator('#camOverlay')).toBeHidden();
 });
+
+test('camera denial explains iPhone and iPad and permits manual selection', async ({ page }) => {
+  await mockSDK(page);
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('Permission denied', 'NotAllowedError'); };
+  });
+  await login(page);
+  await page.getByRole('button', { name: '📷 QRでスキャン' }).click();
+  await expect(page.locator('#camErr')).toContainText('iPhone／iPadのSafari');
+  await page.getByRole('button', { name: 'キャンセル' }).click();
+  await page.locator('.student-row[data-id="S2"]').click();
+  await expect(page.locator('#currentStudentCard')).toContainText('テスト 花子');
+});
+
+test('offline guidance survives a data callback and reconnects', async ({ page, context }) => {
+  await mockSDK(page); await login(page);
+  await expect(page.locator('#appShell')).toBeVisible();
+  await context.setOffline(true);
+  await expect(page.locator('#authMessage')).toContainText('通信が切れています');
+  await expect(page.locator('#appShell')).toBeHidden();
+  // A subsequent snapshot must not replace the offline instruction with a wait-only message.
+  await page.evaluate(() => window.testBackend.set('books/9789999100007', { title: 'テスト本', author: 'テスト著者' }));
+  await expect(page.locator('#authMessage')).toContainText('通信が切れています');
+  await expect(page.locator('#sessionStatus')).toHaveText('オフライン');
+  await context.setOffline(false);
+  await expect(page.locator('#appShell')).toBeVisible();
+  await expect(page.locator('#sessionStatus')).toHaveText('接続済み');
+  expect(await page.evaluate(() => window.testBackend.records().filter(([path]) => path.startsWith('loans/')).length)).toBe(0);
+});
+
+for (const path of ['staff/test-user', 'students', 'books', 'loans']) {
+  test(`cached snapshot from ${path} gates the app and preserves offline guidance`, async ({ page, context }) => {
+    await mockSDK(page); await login(page);
+    await expect(page.locator('#appShell')).toBeVisible();
+    // While the browser is online, cache metadata alone must gate the UI.
+    await page.evaluate(path => window.testBackend.emitSnapshot(path, { fromCache: true }), path);
+    await expect(page.locator('#appShell')).toBeHidden();
+    await expect(page.locator('#authMessage')).toContainText('サーバーとの通信を確認しています');
+    await expect(page.locator('#sessionStatus')).toHaveText('同期中');
+    await page.evaluate(path => window.testBackend.emitSnapshot(path, { fromCache: false }), path);
+    await expect(page.locator('#appShell')).toBeVisible();
+    await context.setOffline(true);
+    await page.evaluate(path => window.testBackend.emitSnapshot(path, { fromCache: true }), path);
+    await expect(page.locator('#authMessage')).toContainText('通信が切れています');
+    await expect(page.locator('#sessionStatus')).toHaveText('オフライン');
+    await expect(page.locator('#appShell')).toBeHidden();
+    await context.setOffline(false);
+    await expect(page.locator('#appShell')).toBeVisible();
+    await expect(page.locator('#sessionStatus')).toHaveText('接続済み');
+  });
+}
+
+test('save failure after disconnect preserves offline status in finally', async ({ page, context }) => {
+  await mockSDK(page); await login(page);
+  await expect(page.locator('#appShell')).toBeVisible();
+  await page.evaluate(() => {
+    window.testBackend.set('students/S2', { name: 'テスト 花子', grade: '4年', active: true, activeLoanIds: ['test-loan'] });
+    window.testBackend.set('loans/test-loan', { studentId: 'S2', bookId: '9789999100007', loanDate: '2026-09-24', dueDate: '2026-10-08', returnDate: null });
+    window.testWriteGate = new Promise((resolve, reject) => { window.rejectTestWrite = reject; });
+  });
+  await page.locator('[data-tab="return"]').click();
+  await page.locator('.return-btn').click();
+  await expect(page.locator('#sessionStatus')).toHaveText('保存しています…');
+  await context.setOffline(true);
+  await expect(page.locator('#sessionStatus')).toHaveText('オフライン');
+  await page.evaluate(() => window.rejectTestWrite(Object.assign(new Error('offline'), { code: 'unavailable' })));
+  await expect(page.locator('#toast')).toContainText('保存できませんでした');
+  await expect(page.locator('#sessionStatus')).toHaveText('オフライン');
+  await expect(page.locator('#authMessage')).toContainText('通信が切れています');
+  await expect(page.locator('#appShell')).toBeHidden();
+  expect(await page.evaluate(() => window.testBackend.records().find(([path]) => path === 'loans/test-loan')[1].returnDate)).toBeNull();
+  await context.setOffline(false);
+  await expect(page.locator('#appShell')).toBeVisible();
+  await expect(page.locator('#sessionStatus')).toHaveText('接続済み');
+});
